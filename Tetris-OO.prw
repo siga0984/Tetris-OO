@@ -31,20 +31,26 @@ Barra de Espaço = Dropa a peça
 // =======================================================
 
 USER Function TetrisOO()
-Local nC , nL
-Local oDlg
-Local oBGGame , oBGNext
-Local oFont , oLabel , oMsg
+
+Local oDlg, oBGGame , oBGNext
+Local oFont , oLabel 
 Local oScore , oTimer
-Local aBMPGrid   := array(20,10) // Array de bitmaps de interface do jogo 
-Local aBMPNext   := array(4,5)   // Array de bitmaps da proxima peça
-Local aResources := { "BLACK","YELOW2","LIGHTBLUE2","ORANGE2","RED2","GREEN2","BLUE2","PURPLE2" }
+Local nC , nL
 Local oTetris 
+Local aBMPGrid   
+Local aBMPNext   
+Local aResources 
+
+// Arrays de componentes e recursos de Interface
+aBMPGrid   := array(20,10) // Array de bitmaps de interface do jogo 
+aBMPNext   := array(4,5)   // Array de bitmaps da proxima peça
+aResources := { "BLACK","YELOW2","LIGHTBLUE2","ORANGE2","RED2","GREEN2","BLUE2","PURPLE2" }
 
 // Fonte default usada na caixa de diálogo 
 // e respectivos componentes filhos
 oFont := TFont():New('Courier new',,-16,.T.,.T.)
 
+// Interface principal do jogo
 DEFINE DIALOG oDlg TITLE "Object Oriented Tetris AdvPL" FROM 10,10 TO 450,365 ;
    FONT oFont COLOR CLR_WHITE,CLR_BLACK PIXEL
 
@@ -53,7 +59,7 @@ DEFINE DIALOG oDlg TITLE "Object Oriented Tetris AdvPL" FROM 10,10 TO 450,365 ;
 	SIZE 104,204  Of oDlg ADJUST NOBORDER PIXEL
 
 // Desenha na tela um grid de 20x10 com Bitmaps
-// para ser utilizado para desenhar a tela do jogo
+// para ser utilizado para desenhar o jogo 
 
 For nL := 1 to 20
 	For nC := 1 to 10
@@ -114,7 +120,7 @@ oTetris := APTetris():New()
 // o score quando a peça está descento "sozinha"
 oTimer := TTimer():New(1000, {|| oTetris:DoAction('#') }, oDlg )
 
-// Seta codeblock para atualizar o score na interface
+// Registra evento para atualização de score e status
 oTetris:bShowScore := {|cMsg| oScore:SetText(cMsg) } 
 
 // Registra evento de mudança de estado do jogo 
@@ -135,16 +141,10 @@ ACTIVATE DIALOG oDlg CENTER
 Return
 
 
-
 /* ----------------------------------------------------------
 Função PaintGame()
 Pinta o Grid do jogo da memória para a Interface
-
-Release 20150222 : Optimização na camada de comunicação, apenas setar
-o nome do resource / bitmap caso o resource seja diferente do atual.
-
-Release 20150307 : colocar mais uma linha no topo do grid, para a 
-proxima peça surgir uma linha mais para cima
+Chamada pelo core do Tetris via code-block
 ---------------------------------------------------------- */
 
 STATIC Function PaintGame( aGameGrid, aBmpGrid , aResources ) 
@@ -165,8 +165,8 @@ Next
 Return
 
 /* -----------------------------------------------------------------
-Pinta na interface a próxima peça 
-a ser usada no jogo 
+Pinta na interface a próxima peça a ser usada no jogo 
+Chamada pelo core do Tetris via code-block
 ----------------------------------------------------------------- */
 
 STATIC Function PaintNext(aNext,aBMPNext,aResources) 
@@ -184,13 +184,33 @@ Next
 
 Return
 
+/* ------------------------------------------------------
+Função auxiliar de conversão de segundos para HH:MM:SS
+------------------------------------------------------ */
 
+STATIC Function STOHMS(nSecs)
+Local nHor
+Local nMin
+
+nHor := int(nSecs/3600)
+nSecs -= (3600*nHor)
+
+nMin := int(nSecs/60)
+nSecs -= (60*nMin)
+
+Return strzero(nHor,2)+':'+Strzero(nMin,2)+':'+strzero(nSecs,2)
+
+
+// ============================================================================
+// Classe "CORE" do Jogo Tetris
 // ============================================================================
 
 CLASS APTETRIS
 
   DATA aGamePieces     // Peças que compoe o jogo 
-  DATA nGameTimer      // Tempo de jogo 
+  DATA nGameStart      // Momento de inicio de jogo 
+  DATA nGameTimer      // Tempo de jogo em segundos
+  DATA nGamePause      // Controle de tempo de pausa
   DATA nGameNext       // Proxima peça a ser usada
   DATA nGameStatus     // 0 = Running  1 = PAuse 2 == Game Over
   DATA aGameNext       // Array com a definição e posição da proxima peça
@@ -202,9 +222,9 @@ CLASS APTETRIS
 	DATA bPaintGame      // CodeBlock para evento de pintura do Jogo
 	DATA bPaintNext      // CodeBlock para evento de pintura da PRoxima peça
   
-  METHOD New()
-  METHOD Start() 
-  METHOD DoAction(cAct)  
+  METHOD New()          // Construtor
+  METHOD Start()        // Inicio de Jogo
+  METHOD DoAction(cAct) // Disparo de ações da Interface
   METHOD DoPause() 
 
   METHOD _LoadPieces() 
@@ -218,17 +238,19 @@ CLASS APTETRIS
 ENDCLASS
 
 /* ----------------------------------------------------------
+Construtor da classe, 
 ---------------------------------------------------------- */
 
 METHOD NEW() CLASS APTETRIS
 
-::aGamePieces := ::_LoadPieces()   // Array de peças do jogo 
-::nGameTimer := 0             // Tempo de jogo 
-::aGameNext := {}                 // Array com a definição e posição da proxima peça
+::aGamePieces := ::_LoadPieces()   // Array com as peças do jogo 
+::nGameTimer := 0             // Tempo de jogo  em segundos
+::nGameStart := 0             // Momento de inicio de jogo 
+::aGameNext := {}             // Array com a definição e posição da proxima peça
 ::aGameCurr := {}             // Array com a definição e posição da peça em jogo
-::nGameScore := 0                 // pontuação da partida
+::nGameScore := 0             // pontuação da partida
 ::aGameGrid := {}             // Array de strings com os blocos da interface representados em memoria
-::nGameStatus := 0              // 0 = Running  1 = Pause 2 == Game Over
+::nGameStatus := 0            // 0 = Running  1 = Pause 2 == Game Over
 
 Return self
 
@@ -273,13 +295,17 @@ aDraw := {::nGameNext,1,1,1}
 ::_PutPiece(aDraw,::aGameNext)
 
 // Dispara a pintura da próxima peça
-Eval( ::bPaintNext , ::aGameNext )
+If ::bPaintNext != NIL 
+	Eval( ::bPaintNext , ::aGameNext )
+Endif
 
 // Chama o codeblock de mudança de estado - Jogo em execução 
-Eval(::bChangeState , ::nGameStatus ) 
+If !empty(::bChangeState)
+	Eval(::bChangeState , ::nGameStatus ) 
+Endif
 
 // Marca timer do inicio de jogo 
-::nGameTimer := seconds()
+::nGameStart := seconds()
 
 Return
 
@@ -455,7 +481,6 @@ If lDrop
 		
 		// Dispara a pintura do Grid do Jogo 
 		Eval( ::bPaintGame , ::aGameGrid) 
-
 		// E retorna daqui mesmo 
 		Return
 		
@@ -485,7 +510,6 @@ If ::_PutPiece(::aGameCurr,::aGameGrid)
 	// Nao bateu em nada, continua 
 	// Dispara a pintura do Grid do Jogo 
 	Eval( ::bPaintGame , ::aGameGrid) 
-	
 	// e retorna imediatamente
 	Return
 	
@@ -518,16 +542,19 @@ If !::_PutPiece(::aGameCurr,::aGameGrid)
 	// volta os ultimos 4 pontos ...
 	::nGameScore -= 4
 	
-	// Cacula o tempo de operação do jogo
-	::nGameTimer := round(seconds()-::nGameTimer,0)
+	// Cacula o tempo de jogo
+	::nGameTimer := seconds() - ::nGameStart
+
 	If ::nGameTimer < 0
 		// Ficou negativo, passou da meia noite
 		::nGameTimer += 86400
 	Endif
 	
 	// Chama o codeblock de mudança de estado - Game Over
-	Eval(::bChangeState , ::nGameStatus ) 
-	
+	If ::bChangeState != NIL 
+		Eval(::bChangeState , ::nGameStatus ) 
+	Endif	
+
 Endif
 
 // Se a peca tem onde entrar, beleza
@@ -580,7 +607,7 @@ if cAct $ 'AJ'
 
 	// Dispara a repintura do Grid
 	Eval( ::bPaintGame , ::aGameGrid) 
-	
+
 Elseif cAct $ 'DL'
 
 	// Movimento para a Direita ( uma coluna a mais )
@@ -648,38 +675,37 @@ Coloca e retira o jog em pausa
 ---------------------------------------------------------- */
 METHOD DoPause() CLASS APTETRIS
 Local lChanged := .F.
+Local nPaused                                 
 
 If ::nGameStatus == 0
-	// Jogo em execução = Pausa
-	// Desativa o timer 
+	// Jogo em execução = Pausa : Desativa o timer 
+	lChanged := .T.
 	::nGameStatus := 1
-	lChanged := .T.
+  ::nGamePause := seconds()
 ElseIf ::nGameStatus == 1
-	// Jogo em pausa = Sai da pausa
-	// Ativa o timer 
-	::nGameStatus := 0
+	// Jogo em pausa = Sai da pausa : Ativa o timer 
 	lChanged := .T.
+	::nGameStatus := 0
+	// Calcula quanto tempo o jogo ficou em pausa
+	// e acrescenta esse tempo do start do jogo 
+  nPaused := seconds()-::nGamePause
+	If nPaused < 0 
+		nPaused += 86400
+	Endif   
+	::nGameStart += nPaused
 Endif
 
-IF	lChanged 
+If lChanged 
 
 	// Chama o codeblock de mudança de estado - Entrou ou saiu de pausa
 	Eval(::bChangeState , ::nGameStatus ) 
 
 	If ::nGameStatus == 1
-
-		// Se houve mudança, na pausa deve apagar o estado do jogo
-		// para nao dar tempo do jogador "ficar pensando" onde encaixar 
-		// a peça em queda ... 
-	    
-		// Dispara a pintura do Grid do Jogo vazio 
+		// Em pausa, Dispara a pintura do Grid do Jogo vazio 
 		Eval( ::bPaintGame , ::_GetEmptyGrid() ) 
-
 	Else
-
-		// Game voltou ao movimento, repinta as peças 	
+		// Game voltou da pausa, pinta novamente o Grid
 		Eval( ::bPaintGame , ::aGameGrid) 
-
 	Endif
 
 Endif
@@ -699,16 +725,16 @@ Local nPos   := aPiece[PIECE_ROTATION]
 Local nRow   := aPiece[PIECE_ROW]
 Local nCol   := aPiece[PIECE_COL]
 Local nL, nC
-Local cTecoGrid, cPeca
+Local cTecoGrid, cTecoPeca
 
 // Como a matriz da peça é 4x4, trabalha em linhas e colunas
 // Separa do grid atual apenas a área que a peça está ocupando
 // e desliga os pontos preenchidos da peça no Grid.
 For nL := nRow to nRow+3
 	cTecoGrid := substr(aGrid[nL],nCol,4)
-	cPeca := ::aGamePieces[nPiece][1+nPos][nL-nRow+1]
+	cTecoPeca := ::aGamePieces[nPiece][1+nPos][nL-nRow+1]
 	For nC := 1 to 4
-		If Substr(cPeca,nC,1)=='1'
+		If Substr(cTecoPeca,nC,1)=='1'
 			cTecoGrid := Stuff(cTecoGrid,nC,1,'0')
 		Endif
 	Next
@@ -759,22 +785,31 @@ Return
 
 
 /* ------------------------------------------------------
-Atualiza score e status do jogon a interface
+Atualiza score e status do jogo na interface
 ------------------------------------------------------*/
 METHOD _UpdateStat() CLASS APTETRIS
 Local cMessage 
 
 If ::nGameStatus == 0
 
-	// JOgo em andamento, apenas atualiza score e timer
+	// Jogo em andamento 
+	// Cacula o tempo decorrido de jogo
+	::nGameTimer := seconds() - ::nGameStart
+
+	If ::nGameTimer < 0
+		// Ficou negativo, passou da meia noite
+		::nGameTimer += 86400
+	Endif
+
+	// Atualiza score e timer
 	cMessage := str(::nGameScore,7)+CRLF+CRLF+;
-		'[Time]'+CRLF+str(seconds()-::nGameTimer,7,0)+' s.'
+		'[Time]'+CRLF+STOHMS(::nGameTimer)
 
 ElseIf ::nGameStatus == 1
 
 	// Pausa, acresenta a mensagem de "GAME OVER"
 	cMessage := str(::nGameScore,7)+CRLF+CRLF+;
-		'[Time]'+CRLF+str(seconds()-::nGameTimer,7,0)+' s.'+CRLF+CRLF+;
+		'[Time]'+CRLF+STOHMS(::nGameTimer)+CRLF+CRLF+;
 		"*********"+CRLF+;
 		"* PAUSE *"+CRLF+;
 		"*********"
@@ -782,8 +817,9 @@ ElseIf ::nGameStatus == 1
 ElseIf ::nGameStatus == 2
 
 	// Terminou, acresenta a mensagem de "GAME OVER"
+
 	cMessage := str(::nGameScore,7)+CRLF+CRLF+;
-		'[Time]'+CRLF+str(::nGameTimer,7,0)+' s.'+CRLF+CRLF+;
+		'[Time]'+CRLF+STOHMS(::nGameTimer)+CRLF+CRLF+;
 		"********"+CRLF+;
 		"* GAME *"+CRLF+;
 		"********"+CRLF+;
@@ -792,7 +828,7 @@ ElseIf ::nGameStatus == 2
 
 Endif
 
-// Dispara o codeblock que atualiza o score                  
+// Dispara o codeblock que atualiza o score/status
 Eval( ::bShowScore , cMessage ) 
 
 Return
