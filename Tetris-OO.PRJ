@@ -1,0 +1,56 @@
+Group Advpl Games
+   Version=7.0
+   VSSDB=
+   HasProperties=1
+   Properties
+      BeforeApply=
+      AfterApply=
+      Icon=
+      ID=
+      Version=
+      PalmName=
+      OutPut=
+   End
+   ProjectsCount=1
+   Project Tetris - Orientado a Objetos
+      FoldersCount=2
+      Folder Fontes
+         VSSPath=Fontes
+         FilesCount=1
+         File \GitHub\Tetris-OO\Tetris-OO.prw
+             Type=T
+         End
+      End
+      Folder Imagens
+         VSSPath=Definições
+         FilesCount=9
+         File \GitHub\Tetris-OO\Black.bmp
+             Type=I
+         End
+         File \GitHub\Tetris-OO\Blue2.bmp
+             Type=I
+         End
+         File \GitHub\Tetris-OO\Gray.bmp
+             Type=I
+         End
+         File \GitHub\Tetris-OO\Green2.bmp
+             Type=I
+         End
+         File \GitHub\Tetris-OO\LightBlue2.bmp
+             Type=I
+         End
+         File \GitHub\Tetris-OO\Orange2.bmp
+             Type=I
+         End
+         File \GitHub\Tetris-OO\Purple2.bmp
+             Type=I
+         End
+         File \GitHub\Tetris-OO\Red2.bmp
+             Type=I
+         End
+         File \GitHub\Tetris-OO\Yelow2.bmp
+             Type=I
+         End
+      End
+   End
+End
