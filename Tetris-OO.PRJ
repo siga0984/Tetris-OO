@@ -16,11 +16,14 @@ Group Advpl Games
       FoldersCount=2
       Folder Fontes
          VSSPath=Fontes
-         FilesCount=2
+         FilesCount=3
          File \GitHub\Tetris-OO\Tetris-OO.prw
              Type=T
          End
          File \GitHub\Tetris-OO\Tetris-Core.prw
+             Type=T
+         End
+         File \GitHub\Tetris-OO\TPlayer.prw
              Type=T
          End
       End

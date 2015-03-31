@@ -127,6 +127,7 @@ METHOD DoAction(cAct)  CLASS APTETRIS
 Local aOldPiece
 Local cScore, cElapTime 
 Local cOldScore, cOldElapTime 
+Local lActionOk := .T.
 
 If ::nGameStatus != GAME_RUNNING
 	// Jogo não está rodando, nao aceita ação nenhuma
@@ -150,6 +151,7 @@ if cAct $ 'AJ'
 		// Se nao foi feliz, pinta a peça de volta
 		::aGameCurr :=  aClone(aOldPiece)
 		::_SetPiece(::aGameCurr,::aGameGrid)
+		lActionOk := .F.
 	Endif
 	
 Elseif cAct $ 'DL'
@@ -162,6 +164,7 @@ Elseif cAct $ 'DL'
 		// Se nao foi feliz, pinta a peça de volta
 		::aGameCurr :=  aClone(aOldPiece)
 		::_SetPiece(::aGameCurr,::aGameGrid)
+		lActionOk := .F.
 	Endif
 	
 Elseif cAct $ 'WI'
@@ -182,6 +185,7 @@ Elseif cAct $ 'WI'
 		// Nao é possivel rotacionar. Pinta a peça de volta
 		::aGameCurr :=  aClone(aOldPiece)
 		::_SetPiece(::aGameCurr,::aGameGrid)
+		lActionOk := .F.
 	Endif
 	
 ElseIF cAct $ 'SK#'
@@ -237,7 +241,7 @@ If ( cOldElapTime <> cElapTime )
 	Eval( ::bShowElap , cElapTime )
 Endif
 
-Return .T.
+Return lActionOk
 
 
 /* ----------------------------------------------------------
@@ -322,8 +326,6 @@ Local nCol     := aPiece[PIECE_COL] // Coluna no Grid
 Local nL , nC
 Local aTecos := {}
 Local cTecoGrid, cPeca , cPieceId
-
-conout("_SetPiece on COL "+cValToChar(nCol))
 
 cPieceId := str(nPiece,1)
 

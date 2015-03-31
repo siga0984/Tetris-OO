@@ -110,6 +110,7 @@ Next
 @ 480,20 BUTTON oDummyB7 PROMPT '&I'  ACTION ( oTetris:DoAction('I') )  SIZE 1, 1 OF oDlg PIXEL
 @ 480,20 BUTTON oDummyB8 PROMPT '& '  ACTION ( oTetris:DoAction(' ') )  SIZE 1, 1 OF oDlg PIXEL
 @ 480,20 BUTTON oDummyB9 PROMPT '&P'  ACTION ( oTetris:DoPause()     )  SIZE 1, 1 OF oDlg PIXEL
+@ 480,20 BUTTON oDummyBA PROMPT '&!'  ACTION ( AutoPlayer(oTetris,oTimer)    )  SIZE 1, 1 OF oDlg PIXEL
 
 // Inicializa o objeto do core do jogo 
 oTetris := APTetris():New()
@@ -249,4 +250,24 @@ For nL := 1 to 4
 Next
 
 Return
+
+
+
+Static Function AutoPlayer(oTetris,oTimer)
+
+If (oTetris:nGameStatus != GAME_RUNNING)
+	MsgInfo("O AutoPlayer somente pode ser chamado com o jogo em execução.","Atenção")
+	Return
+Endif
+
+oTimer:Deactivate()
+
+U_TPlayer(oTetris)
+
+oTimer:Activate()
+
+Return
+
+
+
 
